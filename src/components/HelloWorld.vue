@@ -97,6 +97,7 @@
 <script setup>
 import { ref } from "vue";
 import jsPDF from "jspdf";
+import logoVue from "../assets/vue.svg";
 
 // Data de hoje formatada para input fecha YYYY-MM-DD
 const today = new Date();
@@ -121,20 +122,73 @@ const removeItem = (index) => {
   items.value.splice(index, 1);
 };
 
-const generatePDF = () => {
+// Função para carregar imagem como base64
+const loadImage = (url) => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "Anonymous";
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0);
+      resolve(canvas.toDataURL("image/png"));
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+};
+
+const generatePDF = async () => {
   const doc = new jsPDF();
 
   const left = 20;
   let y = 20;
 
-  doc.setFontSize(18);
-  doc.text("RECIBO DE PAGAMENTO", left, y);
+  // Adicionar logo
+  try {
+    const logoData = await loadImage(logoVue);
+    doc.addImage(logoData, "PNG", left, y, 20, 20);
+  } catch (error) {
+    console.error("Erro ao carregar logo:", error);
+  }
 
-  y += 10;
+  // Título do cabeçalho
+  doc.setFontSize(24);
+  doc.setFont("helvetica", "normal");
+  doc.text("PDF ", left + 25, y + 15);
+
+  // Calcular largura do texto "PDF "
+  const pdfWidth = doc.getTextWidth("PDF ");
+
+  doc.setTextColor(255, 0, 0);
+  doc.setFont("helvetica", "bold");
+  doc.text("Exemplo", left + 25 + pdfWidth, y + 15);
+
+  // Resetar cor para preto
+  doc.setTextColor(0, 0, 0);
+
+  y += 25;
+
+  // Linha divisória do cabeçalho
+  doc.setLineWidth(0.5);
   doc.line(left, y, 190, y);
   y += 10;
 
+  // Título do recibo
+  doc.setFontSize(18);
+  doc.setFont("helvetica", "bold");
+  doc.text("RECIBO DE PAGAMENTO", left, y);
+
+  y += 10;
+  doc.setLineWidth(0.3);
+  doc.line(left, y, 190, y);
+  y += 10;
+
+  // Informações do recibo
   doc.setFontSize(12);
+  doc.setFont("helvetica", "normal");
   doc.text(`Vendedor: ${sellerName.value}`, left, y);
   y += 7;
 
@@ -163,10 +217,12 @@ const generatePDF = () => {
   y += 10;
 
   doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
   doc.text("Itens Comprados:", left, y);
   y += 8;
 
   doc.setFontSize(12);
+  doc.setFont("helvetica", "normal");
   items.value.forEach((item) => {
     doc.text(`- ${item || "(vazio)"}`, left, y);
     y += 7;
